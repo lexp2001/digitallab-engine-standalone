@@ -12,7 +12,7 @@
     <title>Edutecno</title>
 </head>
 
-<body>
+<body onmousemove="onMove()">
     <div id="outer">
         <canvas id="canvas" style="position: absolute;"></canvas>
         <canvas id="canvas2" style="position: absolute;"></canvas>
@@ -20,8 +20,37 @@
     <div id="overlay">
          <img onclick="onClickInit()" src="./logo.png" alt="" >
     </div>
+    <div id="overlayTrans">
+    </div>
    
-    
+    <div style="display: flex; justify-content: center;">
+
+        <div id="playback-icon-container-container">
+
+            <div class="playback-icon-container">
+
+                <div class="button">
+                    <img src="./undo-alt-solid.svg">
+                </div>
+
+                <div>
+                    <div class="button">
+                        <img src="./step-backward-solid.svg">
+                    </div>
+                    <div class="button" onclick="onStop()">
+                        <img src="./stop-solid.svg">
+                    </div>
+                    <div class="button" onclick="onNext()">
+                        <img src="./step-forward-solid.svg">
+                    </div>
+                </div>
+
+                <div class="button" onclick="onSwitchMute()">
+                    <img src="./volume-mute-solid.svg">
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="./project.js"></script>
     <script src="./engine.js"></script>

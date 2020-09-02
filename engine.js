@@ -2,11 +2,16 @@
 var canvas
 var canvas2
 var init = false
+var track = new Audio()
+var timeout
+var stopped = false
+
 const elemCanvas = document.getElementById("canvas")
 const elemCanvas2 = document.getElementById("canvas2")
 const overlay = document.getElementById("overlay")
+const overlayTrans = document.getElementById("overlayTrans")
 const outer = document.getElementById("outer")
-var arrayObj = []
+const controls = document.getElementById("playback-icon-container-container")
 
 animEfectos = [
     { estilo: "opacity", efectoIn: "", efectoOut: "" }, // 0 - Sin Efecto 
@@ -67,7 +72,7 @@ loadScene = (numScene) => {
         canvas.renderAll()
 
         escena.objects.forEach( (obj, i) =>{
-            effectIn(canvas.item(i), canvas, i)
+            effectIn(canvas.item(i), canvas)
         })
 
     })
@@ -83,21 +88,13 @@ loadScene = (numScene) => {
 
 // Load scene without animation
 loadCanvasScene = (currentCanvas, numScene) => {
-    console.info(currentCanvas)
+
     let escena = project.escenas[numScene].fabric
     currentCanvas.loadFromJSON(escena, () => {
-
-        escena.objects.forEach( (obj, i) =>{
-            arrayObj[i]={"left":obj.left, "top":obj.top, "opacity":obj.opacity}
-            //prepareObj(currentCanvas.item(i), currentCanvas)
-            obj.hasControls = false
-            obj.hasBorders = false
-            obj.selectable = false
-
-            currentCanvas._objects[i].visible = false
-            currentCanvas.renderAll()
-        })
-        console.info("arrayObj: ", arrayObj)
+        currentCanvas.renderAll()
+        if (numScene==0) {
+            loadInAnimation(currentCanvas, numScene) 
+        }
 
     })
 
@@ -108,11 +105,7 @@ loadInAnimation = (currentCanvas, numScene) => {
 
     let escena = project.escenas[numScene].fabric
     escena.objects.forEach( (obj, i) =>{
-        const timeOffset = parseInt( currentCanvas.item(i).animation.inSeg) * 1000
-        console.info("timeOffset", i, timeOffset)
-        setTimeout( () => {
-            effectIn(currentCanvas.item(i), currentCanvas, i)
-        }, timeOffset )
+        effectIn(currentCanvas.item(i), currentCanvas)
         
     })
 
@@ -130,15 +123,20 @@ loadInAnimation = (currentCanvas, numScene) => {
 
     if (init) {
         let audio = new Audio()
-        audio.src = "http://edutecno.tk:8250/" + project._id + "/" + numScene + ".wav"
+        audio.src = "./" + numScene + ".wav"
         audio.load()
         audio.play()
         audio.addEventListener("ended", () => {
             console.info("Fin audio")
             
-            if (project.escenas.length - 1 > numScene) {
+            if (project.escenas.length - 1 > numScene && !stopped) {
+                stopped = false
                 loadOutAnimation(currentCanvas, numScene)
-            } 
+            } else {
+                setTimeout(()=>{
+                    track.pause()
+                }, 3000)
+            }
         })
 
         
@@ -181,6 +179,14 @@ loadOutAnimation = (currentCanvas, numScene) => {
 // Exit from scene
 outScene = (numScene) => {
 
+    // overlayTrans.style.transition= "opacity 0.2s ease"
+    // overlayTrans.style.opacity = 1
+
+    // setTimeout(()=>{
+    //     overlayTrans.style.transition= "opacity 0.2s ease"
+    //     overlayTrans.style.opacity = 0
+    // }, 300)
+
     let escena = project.escenas[numScene].fabric
 
     escena.objects.forEach( (obj, i) =>{
@@ -195,29 +201,30 @@ outScene = (numScene) => {
 }
 
 // Perform the enter effect
-effectIn = (obj, canvas, objIndex) => {
+effectIn = (obj, canvas) => {
     console.info("obj.animation", obj.animation)
     const efecto = this.animEfectos[obj.animation.inEffect].efectoIn
     const estilo = this.animEfectos[obj.animation.inEffect].estilo
-    console.info("Animation:", estilo, efecto)
+    const offset = parseFloat(String(obj.animation.inSeg))*1000 
 
-    let valorFinal = arrayObj[objIndex]
+    console.info("Animation:", estilo, efecto, offset)
 
+    let valorFinal
 
     switch (estilo) {
 
         case 'opacity':
-            valorFinal = arrayObj[objIndex].opacity
-            obj.opacity = 0
+            valorFinal = obj.opacity
+            obj.opacity = efecto == "" ? 1: 0
             break
 
         case 'left':
-            valorFinal = arrayObj[objIndex].left
+            valorFinal = obj.left
             obj.left = -obj.width * obj.scaleX - 10
             break
 
         case 'top':
-            valorFinal = arrayObj[objIndex].top
+            valorFinal = obj.top
             obj.top = -obj.height * obj.scaleY - 10
             break
 
@@ -226,13 +233,24 @@ effectIn = (obj, canvas, objIndex) => {
 
     obj.hasControls = false
     obj.hasBorders = false
-    obj.selectable = false
-    obj.visible = true
-    obj.animate(estilo, valorFinal, {
-        duration: 500,
-        onChange: canvas.renderAll.bind(canvas)
-        , easing: fabric.util.ease[efecto]
-    })
+
+
+    setTimeout(()=>{
+        obj.animate(estilo, valorFinal, {
+            duration: 500,
+            onChange: canvas.renderAll.bind(canvas)
+            , easing: fabric.util.ease[efecto]
+        })
+        if (obj.animation.inSeg && obj.animation.inSeg != null ) {
+            const duration = parseFloat(String(obj.animation.duration))*1000 
+            if (duration > 0.5) {
+                setTimeout(()=>{
+                    effectOut(obj, canvas)
+                }, duration)
+            }
+        }
+    }, offset )
+    
 }
 
 // Perform the exit effect
@@ -272,58 +290,42 @@ effectOut = (obj, canvas) => {
     })
 }
 
-// Perform the enter effect
-prepareObj = (obj, canvas) => {
-    console.info("obj before", obj)
-    const efecto = this.animEfectos[obj.animation.inEffect].efectoIn
-    const estilo = this.animEfectos[obj.animation.inEffect].estilo
-    console.info("Animation:", estilo, efecto)
-
-    let valorFinal
-
-    switch (estilo) {
-
-        case 'opacity':
-            valorFinal = 0
-            obj.opacity = 0
-            break
-
-        case 'left':
-            valorFinal = -obj.width * obj.scaleX - 10
-            obj.left = -obj.width * obj.scaleX - 10
-            break
-
-        case 'top':
-            valorFinal = -obj.height * obj.scaleY - 10
-            obj.top = -obj.height * obj.scaleY - 10
-            break
-
-    }
-
-    console.info(estilo + ": ", valorFinal)
-    obj.hasControls = false
-    obj.hasBorders = false
-    // obj.animate(estilo, valorFinal, {
-    //     duration: 500,
-    //     onChange: canvas.renderAll.bind(canvas)
-    //     , easing: fabric.util.ease[efecto]
-    // })
-    console.info("obj after", obj)
-}
-
 function onClickInit() {
     console.info("Starting...")
     init = true
     overlay.style.display = "none"
-    let track = new Audio()
     track.src = "./track.mp3"
     track.load()
     track.volume = 0.1;
     track.play()
-    //loadCanvasScene(canvas, 0)
-    loadInAnimation(canvas, 0) 
+    loadCanvasScene(canvas, 0)
 
 }
+
+/************************** PLAY CONTROL FUNCTIONS*****************************/
+
+function onMove() {
+    controls.style.opacity = 1
+    clearTimeout(timeout);
+    timeout = setTimeout(()=>{
+        controls.style.opacity = 0
+    }, 2000)
+
+}
+
+function onStop() {
+    stopped = true
+}
+
+function onNext() {
+    //loadOutAnimation(currentCanvas, numScene)
+}
+
+function onSwitchMute() {
+    console.info(audio.volume)
+}
+
+
 
 /******************************************************************************/
 
